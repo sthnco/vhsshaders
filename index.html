@@ -15,12 +15,32 @@
                 <input type="file" id="imageInput" accept="image/*">
             </label>
             <div id="status">Ready</div>
+
+            <div id="layers-panel" class="hidden">
+                <h3>Layers</h3>
+                <div class="layers-list">
+                    <div class="layer-item" data-layer="source">
+                        <canvas class="layer-thumb" id="thumb-source"></canvas>
+                        <span class="layer-name">Source</span>
+                    </div>
+                    <div class="layer-item" data-layer="depth">
+                        <canvas class="layer-thumb" id="thumb-depth"></canvas>
+                        <span class="layer-name">Depth Map</span>
+                    </div>
+                    <div class="layer-item selected" data-layer="effect">
+                        <canvas class="layer-thumb" id="thumb-effect"></canvas>
+                        <span class="layer-name">VHS Effect</span>
+                    </div>
+                    <div class="layer-item" data-layer="splat">
+                        <canvas class="layer-thumb" id="thumb-splat"></canvas>
+                        <span class="layer-name">3D Splat</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="canvas-container">
             <canvas id="canvas"></canvas>
-            <button id="toggleView" class="toggle-btn hidden">Show Depth Map</button>
-            <button id="toggle3D" class="toggle-btn hidden">3D Splat View</button>
         </div>
 
         <div id="debug-panel">
@@ -35,7 +55,7 @@
                 </div>
                 <div class="slider-row">
                     <span>Thickness</span>
-                    <input type="range" id="lineThickness" min="0.5" max="4" value="1.5" step="0.1">
+                    <input type="range" id="lineThickness" min="0.5" max="20" value="1.5" step="0.5">
                     <span class="value" id="lineThickness-val">1.5</span>
                 </div>
             </div>

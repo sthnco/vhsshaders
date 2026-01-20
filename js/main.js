@@ -11,12 +11,15 @@ class VHSDepthEffect {
         this.framebuffers = {};
         this.depthTexture = null;
         this.depthMapSize = { width: 0, height: 0 };
+        this.sourceImage = null; // Store original image for thumbnail
+        this.sourceTexture = null; // WebGL texture for source image
+        this.depthMapData = null; // Store depth data for thumbnail
         this.time = 0;
         this.animationId = null;
         this.isRunning = false;
 
-        // View mode: 0 = contour effect, 1 = depth map, 2 = 3D splat
-        this.viewMode = 0;
+        // View mode: 'effect' = VHS contour, 'depth' = depth map, 'splat' = 3D, 'source' = original image
+        this.viewMode = 'effect';
 
         // Effect parameters (will be updated by sliders)
         this.params = {
@@ -41,38 +44,169 @@ class VHSDepthEffect {
         };
     }
 
-    toggleViewMode() {
-        // Toggle between 0 (effect) and 1 (depth map) only
-        this.viewMode = this.viewMode === 0 ? 1 : 0;
-        const btn = document.getElementById('toggleView');
-        if (btn) {
-            btn.textContent = this.viewMode === 0 ? 'Show Depth Map' : 'Show Effect';
-        }
+    setViewMode(mode) {
+        this.viewMode = mode;
+        this.updateLayerSelection();
         this.updateSplatControlsVisibility();
     }
 
-    toggle3DMode() {
-        // Toggle 3D splat mode
-        if (this.viewMode === 2) {
-            this.viewMode = 0;
-        } else {
-            this.viewMode = 2;
-        }
-        const btn = document.getElementById('toggle3D');
-        if (btn) {
-            btn.textContent = this.viewMode === 2 ? 'Exit 3D View' : '3D Splat View';
-        }
-        const viewBtn = document.getElementById('toggleView');
-        if (viewBtn) {
-            viewBtn.textContent = 'Show Depth Map';
-        }
-        this.updateSplatControlsVisibility();
+    updateLayerSelection() {
+        // Update layer panel selection
+        document.querySelectorAll('.layer-item').forEach(item => {
+            item.classList.remove('selected');
+            if (item.dataset.layer === this.viewMode) {
+                item.classList.add('selected');
+            }
+        });
     }
 
     updateSplatControlsVisibility() {
         const splatControls = document.getElementById('splat-controls');
         if (splatControls) {
-            splatControls.style.display = this.viewMode === 2 ? 'block' : 'none';
+            splatControls.style.display = this.viewMode === 'splat' ? 'block' : 'none';
+        }
+    }
+
+    setupLayerPanel() {
+        document.querySelectorAll('.layer-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const layer = item.dataset.layer;
+                this.setViewMode(layer);
+            });
+        });
+    }
+
+    generateThumbnails() {
+        const thumbSize = 32;
+
+        // Source image thumbnail
+        if (this.sourceImage) {
+            const sourceThumb = document.getElementById('thumb-source');
+            if (sourceThumb) {
+                sourceThumb.width = thumbSize;
+                sourceThumb.height = thumbSize;
+                const ctx = sourceThumb.getContext('2d');
+                // Draw image scaled to fit thumbnail
+                const scale = Math.max(thumbSize / this.sourceImage.width, thumbSize / this.sourceImage.height);
+                const w = this.sourceImage.width * scale;
+                const h = this.sourceImage.height * scale;
+                const x = (thumbSize - w) / 2;
+                const y = (thumbSize - h) / 2;
+                ctx.fillStyle = '#222';
+                ctx.fillRect(0, 0, thumbSize, thumbSize);
+                ctx.drawImage(this.sourceImage, x, y, w, h);
+            }
+        }
+
+        // Depth map thumbnail
+        if (this.depthMapData) {
+            const depthThumb = document.getElementById('thumb-depth');
+            if (depthThumb) {
+                depthThumb.width = thumbSize;
+                depthThumb.height = thumbSize;
+                const ctx = depthThumb.getContext('2d');
+                const imgData = ctx.createImageData(thumbSize, thumbSize);
+
+                // Sample depth map at thumbnail resolution
+                for (let y = 0; y < thumbSize; y++) {
+                    for (let x = 0; x < thumbSize; x++) {
+                        const srcX = Math.floor(x / thumbSize * this.depthMapData.width);
+                        const srcY = Math.floor(y / thumbSize * this.depthMapData.height);
+                        const srcIdx = srcY * this.depthMapData.width + srcX;
+                        const val = Math.floor(this.depthMapData.data[srcIdx] * 255);
+                        const dstIdx = (y * thumbSize + x) * 4;
+                        imgData.data[dstIdx] = val;
+                        imgData.data[dstIdx + 1] = val;
+                        imgData.data[dstIdx + 2] = val;
+                        imgData.data[dstIdx + 3] = 255;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
+        }
+
+        // VHS Effect thumbnail (simplified version with glow color)
+        if (this.depthMapData) {
+            const effectThumb = document.getElementById('thumb-effect');
+            if (effectThumb) {
+                effectThumb.width = thumbSize;
+                effectThumb.height = thumbSize;
+                const ctx = effectThumb.getContext('2d');
+                const imgData = ctx.createImageData(thumbSize, thumbSize);
+
+                const glowR = Math.floor(this.params.glowColorR * 255);
+                const glowG = Math.floor(this.params.glowColorG * 255);
+                const glowB = Math.floor(this.params.glowColorB * 255);
+
+                for (let y = 0; y < thumbSize; y++) {
+                    for (let x = 0; x < thumbSize; x++) {
+                        const srcX = Math.floor(x / thumbSize * this.depthMapData.width);
+                        const srcY = Math.floor(y / thumbSize * this.depthMapData.height);
+                        const srcIdx = srcY * this.depthMapData.width + srcX;
+                        const depth = this.depthMapData.data[srcIdx];
+
+                        // Simplified contour effect
+                        const scaledDepth = depth * this.params.contourCount;
+                        const band = scaledDepth % 1;
+                        const isLine = band < 0.1 || band > 0.9;
+
+                        const dstIdx = (y * thumbSize + x) * 4;
+                        if (isLine) {
+                            imgData.data[dstIdx] = 220;
+                            imgData.data[dstIdx + 1] = 225;
+                            imgData.data[dstIdx + 2] = 230;
+                        } else {
+                            imgData.data[dstIdx] = Math.floor(glowR * 0.3 * depth);
+                            imgData.data[dstIdx + 1] = Math.floor(glowG * 0.3 * depth);
+                            imgData.data[dstIdx + 2] = Math.floor(glowB * 0.3 * depth);
+                        }
+                        imgData.data[dstIdx + 3] = 255;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
+        }
+
+        // 3D Splat thumbnail (similar to effect but with perspective hint)
+        if (this.depthMapData) {
+            const splatThumb = document.getElementById('thumb-splat');
+            if (splatThumb) {
+                splatThumb.width = thumbSize;
+                splatThumb.height = thumbSize;
+                const ctx = splatThumb.getContext('2d');
+                const imgData = ctx.createImageData(thumbSize, thumbSize);
+
+                const glowR = Math.floor(this.params.glowColorR * 255);
+                const glowG = Math.floor(this.params.glowColorG * 255);
+                const glowB = Math.floor(this.params.glowColorB * 255);
+
+                for (let y = 0; y < thumbSize; y++) {
+                    for (let x = 0; x < thumbSize; x++) {
+                        const srcX = Math.floor(x / thumbSize * this.depthMapData.width);
+                        const srcY = Math.floor(y / thumbSize * this.depthMapData.height);
+                        const srcIdx = srcY * this.depthMapData.width + srcX;
+                        const depth = this.depthMapData.data[srcIdx];
+
+                        // Simplified contour for 3D hint
+                        const scaledDepth = depth * this.params.contourCount;
+                        const band = scaledDepth % 1;
+                        const isLine = band < 0.12 || band > 0.88;
+
+                        const dstIdx = (y * thumbSize + x) * 4;
+                        if (isLine) {
+                            imgData.data[dstIdx] = 200;
+                            imgData.data[dstIdx + 1] = 210;
+                            imgData.data[dstIdx + 2] = 220;
+                        } else {
+                            imgData.data[dstIdx] = Math.floor(glowR * 0.4 * (0.5 + depth * 0.5));
+                            imgData.data[dstIdx + 1] = Math.floor(glowG * 0.4 * (0.5 + depth * 0.5));
+                            imgData.data[dstIdx + 2] = Math.floor(glowB * 0.4 * (0.5 + depth * 0.5));
+                        }
+                        imgData.data[dstIdx + 3] = 255;
+                    }
+                }
+                ctx.putImageData(imgData, 0, 0);
+            }
         }
     }
 
@@ -160,8 +294,19 @@ class VHSDepthEffect {
     async loadShaders() {
         const vertSource = await fetch('shaders/quad.vert').then(r => r.text());
         const sideBySideFragSource = await fetch('shaders/side-by-side.frag').then(r => r.text());
+        const passthroughFragSource = await fetch('shaders/passthrough.frag').then(r => r.text());
 
         this.programs.sideBySide = this.renderer.createProgram(vertSource, sideBySideFragSource);
+        this.programs.passthrough = this.renderer.createProgram(vertSource, passthroughFragSource);
+    }
+
+    loadImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = url;
+        });
     }
 
     async processImage(file) {
@@ -170,6 +315,10 @@ class VHSDepthEffect {
         try {
             // Create blob URL for the image
             const imageUrl = await loadImageAsUrl(file);
+
+            // Load source image for thumbnail and create texture
+            this.sourceImage = await this.loadImage(imageUrl);
+            this.sourceTexture = this.renderer.createImageTexture(this.sourceImage);
 
             // Initialize depth estimator
             this.showLoading(true, 'Loading depth model (first time may take a moment)...');
@@ -189,6 +338,9 @@ class VHSDepthEffect {
             const depthMap = await generateDepthMap(resizedUrl, (progress) => {
                 this.showLoading(true, `Generating depth map... ${progress}%`);
             });
+
+            // Store depth data for thumbnails
+            this.depthMapData = depthMap;
 
             // Clean up resized URL if different from original
             if (resizedUrl !== imageUrl) {
@@ -229,9 +381,10 @@ class VHSDepthEffect {
             console.log('Starting render loop, canvas size:', this.canvas.width, 'x', this.canvas.height);
             this.startRenderLoop();
 
-            // Show the toggle buttons
-            document.getElementById('toggleView').classList.remove('hidden');
-            document.getElementById('toggle3D').classList.remove('hidden');
+            // Show the layers panel and generate thumbnails
+            document.getElementById('layers-panel').classList.remove('hidden');
+            this.generateThumbnails();
+            this.updateLayerSelection();
 
         } catch (error) {
             this.showLoading(false);
@@ -263,16 +416,30 @@ class VHSDepthEffect {
         const height = this.canvas.height;
 
         // 3D Splat mode
-        if (this.viewMode === 2) {
+        if (this.viewMode === 'splat') {
             this.splatRenderer.setParams(this.params);
             this.splatRenderer.render(width, height);
             this.animationId = requestAnimationFrame(() => this.render());
             return;
         }
 
+        // Source image mode - render the original image
+        if (this.viewMode === 'source' && this.sourceTexture) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, width, height);
+
+            const passProgram = this.programs.passthrough;
+            gl.useProgram(passProgram);
+            this.renderer.setTextureUniform(passProgram, 'u_texture', this.sourceTexture, 0);
+            this.renderer.drawQuad();
+
+            this.animationId = requestAnimationFrame(() => this.render());
+            return;
+        }
+
         const program = this.programs.sideBySide;
 
-        // Render side-by-side: depth map | contour VHS effect
+        // Render depth map or contour VHS effect
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, width, height);
         gl.useProgram(program);
@@ -309,8 +476,9 @@ class VHSDepthEffect {
         // Post params
         this.renderer.setUniform(program, 'u_vignetteIntensity', this.params.vignetteIntensity);
 
-        // View mode
-        this.renderer.setUniform(program, 'u_viewMode', this.viewMode);
+        // View mode: 0 = effect, 1 = depth map
+        const viewModeNum = this.viewMode === 'depth' ? 1 : 0;
+        this.renderer.setUniform(program, 'u_viewMode', viewModeNum);
 
         this.renderer.drawQuad();
 
@@ -340,21 +508,14 @@ const app = new VHSDepthEffect();
 document.addEventListener('DOMContentLoaded', async () => {
     await app.init();
 
+    // Set up layer panel click handlers
+    app.setupLayerPanel();
+
     // Handle file upload
     document.getElementById('imageInput').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (file) {
             await app.processImage(file);
         }
-    });
-
-    // Handle view toggle
-    document.getElementById('toggleView').addEventListener('click', () => {
-        app.toggleViewMode();
-    });
-
-    // Handle 3D toggle
-    document.getElementById('toggle3D').addEventListener('click', () => {
-        app.toggle3DMode();
     });
 });
