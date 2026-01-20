@@ -9,6 +9,17 @@ uniform float u_lineBrightness;
 uniform float u_time;
 uniform float u_grainAmount;
 
+// Light params
+uniform float u_lightEnabled;
+uniform vec2 u_lightPosition;
+uniform float u_lightRadius;
+uniform float u_lightIntensity;
+uniform vec3 u_lightColor;
+uniform float u_lightDispersion;
+uniform float u_lightDepthInfluence;
+uniform float u_lightAngle;
+uniform float u_lightConeAngle;
+
 in float v_depth;
 in vec2 v_uv;
 
@@ -53,6 +64,31 @@ void main() {
     vec3 color = bgColor;
     color += u_glowColor * glow * u_glowIntensity;
     color = mix(color, lineColor, contourLine * 0.9);
+
+    // === LIGHT SOURCE ===
+    if (u_lightEnabled > 0.5) {
+        vec2 toPixel = v_uv - u_lightPosition;
+        float distToLight = length(toPixel);
+
+        // Radial falloff
+        float radialFalloff = 1.0 - clamp(distToLight / u_lightRadius, 0.0, 1.0);
+        radialFalloff = pow(radialFalloff, u_lightDispersion);
+
+        // Directional cone
+        float coneFalloff = 1.0;
+        if (u_lightConeAngle < 3.14159) {
+            vec2 lightDir = vec2(cos(u_lightAngle), sin(u_lightAngle));
+            vec2 pixelDir = normalize(toPixel + 0.0001);
+            float angleDiff = acos(clamp(dot(lightDir, pixelDir), -1.0, 1.0));
+            coneFalloff = 1.0 - smoothstep(u_lightConeAngle * 0.5, u_lightConeAngle, angleDiff);
+        }
+
+        // Depth interaction
+        float depthFactor = mix(1.0, v_depth, u_lightDepthInfluence);
+
+        float lightAmount = radialFalloff * coneFalloff * u_lightIntensity * depthFactor;
+        color += u_lightColor * lightAmount;
+    }
 
     // === FILM GRAIN ===
     float grain = rand(v_uv * 500.0 + u_time * 100.0);

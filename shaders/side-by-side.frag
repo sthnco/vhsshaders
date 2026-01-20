@@ -28,6 +28,17 @@ uniform float u_jitterAmount;
 // Post params
 uniform float u_vignetteIntensity;
 
+// Light params
+uniform float u_lightEnabled;
+uniform vec2 u_lightPosition;
+uniform float u_lightRadius;
+uniform float u_lightIntensity;
+uniform vec3 u_lightColor;
+uniform float u_lightDispersion;
+uniform float u_lightDepthInfluence;
+uniform float u_lightAngle;      // Direction angle in radians
+uniform float u_lightConeAngle;  // Cone spread (0 = point light, PI = full circle)
+
 in vec2 v_texCoord;
 out vec4 fragColor;
 
@@ -144,6 +155,34 @@ vec3 renderContourVHS(vec2 uv, vec2 singleRes) {
     vec3 color = bgColor;
     color += u_glowColor * glow * u_glowIntensity;
     color = mix(color, lineColor, contourLine * 0.9);
+
+    // === LIGHT SOURCE ===
+    if (u_lightEnabled > 0.5) {
+        vec2 toPixel = uv - u_lightPosition;
+        float distToLight = length(toPixel);
+
+        // Radial falloff
+        float radialFalloff = 1.0 - clamp(distToLight / u_lightRadius, 0.0, 1.0);
+        radialFalloff = pow(radialFalloff, u_lightDispersion);
+
+        // Directional cone (if cone angle < PI, it's directional)
+        float coneFalloff = 1.0;
+        if (u_lightConeAngle < 3.14159) {
+            vec2 lightDir = vec2(cos(u_lightAngle), sin(u_lightAngle));
+            vec2 pixelDir = normalize(toPixel + 0.0001); // avoid div by zero
+            float angleDiff = acos(clamp(dot(lightDir, pixelDir), -1.0, 1.0));
+            coneFalloff = 1.0 - smoothstep(u_lightConeAngle * 0.5, u_lightConeAngle, angleDiff);
+        }
+
+        // Depth interaction - closer surfaces (higher depth value) catch more light
+        float depthFactor = mix(1.0, depth, u_lightDepthInfluence);
+
+        // Combine all factors
+        float lightAmount = radialFalloff * coneFalloff * u_lightIntensity * depthFactor;
+
+        // Add light contribution
+        color += u_lightColor * lightAmount;
+    }
 
     // === FILM GRAIN ===
     float grain = rand(uv * singleRes + u_time * 1000.0);

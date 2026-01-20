@@ -40,14 +40,32 @@ class VHSDepthEffect {
             vignetteIntensity: 0.3,
             // Splat params
             pointSize: 15,
-            depthScale: 1.5
+            depthScale: 1.5,
+            // Light params
+            lightEnabled: false,
+            lightX: 0.5,
+            lightY: 0.5,
+            lightRadius: 0.4,
+            lightIntensity: 1.0,
+            lightDispersion: 1.5,
+            lightColorR: 1.0,
+            lightColorG: 1.0,
+            lightColorB: 1.0,
+            lightDepthInfluence: 0.5,
+            lightAngle: 0,
+            lightConeAngle: 3.14159
         };
+
+        // Light handle drag state
+        this.isDraggingLight = false;
+        this.isDraggingRotate = false;
     }
 
     setViewMode(mode) {
         this.viewMode = mode;
         this.updateLayerSelection();
         this.updateSplatControlsVisibility();
+        this.updateLightHandleVisibility();
     }
 
     updateLayerSelection() {
@@ -226,6 +244,11 @@ class VHSDepthEffect {
         }
     }
 
+    // Format value to 1 decimal place
+    formatValue(val) {
+        return Number(val).toFixed(1);
+    }
+
     setupControls() {
         const sliderIds = [
             'contourCount', 'lineThickness',
@@ -244,16 +267,19 @@ class VHSDepthEffect {
             if (slider) {
                 // Set initial value from params
                 slider.value = this.params[id];
-                if (valueDisplay) valueDisplay.textContent = this.params[id];
+                if (valueDisplay) valueDisplay.textContent = this.formatValue(this.params[id]);
 
                 // Update on change
                 slider.addEventListener('input', () => {
                     const val = parseFloat(slider.value);
                     this.params[id] = val;
-                    if (valueDisplay) valueDisplay.textContent = val;
+                    if (valueDisplay) valueDisplay.textContent = this.formatValue(val);
                 });
             }
         });
+
+        // Light controls setup
+        this.setupLightControls();
 
         // Color picker setup
         const colorPicker = document.getElementById('glowColor');
@@ -288,6 +314,200 @@ class VHSDepthEffect {
                     updateColorFromHex(hex);
                 }
             });
+        }
+    }
+
+    setupLightControls() {
+        // Light enable checkbox
+        const lightEnabled = document.getElementById('lightEnabled');
+        if (lightEnabled) {
+            lightEnabled.checked = this.params.lightEnabled;
+            lightEnabled.addEventListener('change', () => {
+                this.params.lightEnabled = lightEnabled.checked;
+                this.updateLightHandleVisibility();
+            });
+        }
+
+        // Light sliders
+        const lightSliders = ['lightRadius', 'lightIntensity', 'lightDispersion', 'lightDepthInfluence', 'lightConeAngle'];
+        lightSliders.forEach(id => {
+            const slider = document.getElementById(id);
+            const valueDisplay = document.getElementById(`${id}-val`);
+            if (slider) {
+                slider.value = this.params[id];
+                if (valueDisplay) valueDisplay.textContent = this.formatValue(this.params[id]);
+                slider.addEventListener('input', () => {
+                    const val = parseFloat(slider.value);
+                    this.params[id] = val;
+                    if (valueDisplay) valueDisplay.textContent = this.formatValue(val);
+                    this.updateLightHandle();
+                });
+            }
+        });
+
+        // Light color picker
+        const lightColorPicker = document.getElementById('lightColor');
+        const lightHexInput = document.getElementById('lightColorHex');
+
+        const updateLightColorFromHex = (hex) => {
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+            this.params.lightColorR = r;
+            this.params.lightColorG = g;
+            this.params.lightColorB = b;
+        };
+
+        if (lightColorPicker && lightHexInput) {
+            updateLightColorFromHex(lightColorPicker.value);
+
+            lightColorPicker.addEventListener('input', () => {
+                lightHexInput.value = lightColorPicker.value;
+                updateLightColorFromHex(lightColorPicker.value);
+            });
+
+            lightHexInput.addEventListener('input', () => {
+                let hex = lightHexInput.value;
+                if (!hex.startsWith('#')) hex = '#' + hex;
+                if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                    lightColorPicker.value = hex;
+                    updateLightColorFromHex(hex);
+                }
+            });
+        }
+
+        // Canvas click/drag for light positioning
+        this.setupLightHandleInteraction();
+    }
+
+    setupLightHandleInteraction() {
+        const canvas = this.canvas;
+        const lightHandle = document.getElementById('light-handle');
+        const lightCenter = lightHandle?.querySelector('.light-center');
+        const lightRotateHandle = lightHandle?.querySelector('.light-rotate-handle');
+
+        // Click on canvas to position light
+        canvas.addEventListener('click', (e) => {
+            if (!this.params.lightEnabled || this.isDraggingLight || this.isDraggingRotate) return;
+            if (this.viewMode === 'splat') return; // Don't position in 3D mode
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+
+            this.params.lightX = x;
+            this.params.lightY = y;
+            this.updateLightHandle();
+        });
+
+        // Drag light center to move position
+        if (lightCenter) {
+            lightCenter.addEventListener('mousedown', (e) => {
+                if (!this.params.lightEnabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                this.isDraggingLight = true;
+            });
+        }
+
+        // Drag rotate handle to change angle
+        if (lightRotateHandle) {
+            lightRotateHandle.addEventListener('mousedown', (e) => {
+                if (!this.params.lightEnabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                this.isDraggingRotate = true;
+            });
+        }
+
+        // Global mouse move for dragging
+        document.addEventListener('mousemove', (e) => {
+            if (!this.params.lightEnabled) return;
+
+            const rect = canvas.getBoundingClientRect();
+
+            if (this.isDraggingLight) {
+                const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+                this.params.lightX = x;
+                this.params.lightY = y;
+                this.updateLightHandle();
+            }
+
+            if (this.isDraggingRotate) {
+                // Calculate angle from light center to mouse
+                const centerX = rect.left + this.params.lightX * rect.width;
+                const centerY = rect.top + this.params.lightY * rect.height;
+                const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+                this.params.lightAngle = angle;
+                this.updateLightHandle();
+            }
+        });
+
+        // Global mouse up
+        document.addEventListener('mouseup', () => {
+            this.isDraggingLight = false;
+            this.isDraggingRotate = false;
+        });
+    }
+
+    updateLightHandleVisibility() {
+        const lightHandle = document.getElementById('light-handle');
+        if (lightHandle) {
+            if (this.params.lightEnabled && this.viewMode !== 'splat' && this.depthTexture) {
+                lightHandle.classList.remove('hidden');
+                this.updateLightHandle();
+            } else {
+                lightHandle.classList.add('hidden');
+            }
+        }
+    }
+
+    updateLightHandle() {
+        const lightHandle = document.getElementById('light-handle');
+        if (!lightHandle || !this.params.lightEnabled) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const container = document.getElementById('canvas-container');
+        const containerRect = container.getBoundingClientRect();
+
+        // Position relative to container
+        const canvasOffsetX = rect.left - containerRect.left;
+        const canvasOffsetY = rect.top - containerRect.top;
+
+        const centerX = canvasOffsetX + this.params.lightX * rect.width;
+        const centerY = canvasOffsetY + this.params.lightY * rect.height;
+
+        // Position the light center
+        const lightCenter = lightHandle.querySelector('.light-center');
+        if (lightCenter) {
+            lightCenter.style.left = `${centerX}px`;
+            lightCenter.style.top = `${centerY}px`;
+        }
+
+        // Position and rotate the direction line
+        const lightDirection = lightHandle.querySelector('.light-direction');
+        if (lightDirection) {
+            lightDirection.style.left = `${centerX}px`;
+            lightDirection.style.top = `${centerY}px`;
+            const angleDeg = this.params.lightAngle * (180 / Math.PI);
+            lightDirection.style.transform = `rotate(${angleDeg}deg)`;
+
+            // Hide direction line if cone angle is full circle (point light)
+            lightDirection.style.opacity = this.params.lightConeAngle < 3.0 ? '1' : '0';
+        }
+
+        // Position the rotate handle at end of direction line
+        const lightRotateHandle = lightHandle.querySelector('.light-rotate-handle');
+        if (lightRotateHandle) {
+            const handleDistance = 50; // pixels from center
+            const handleX = centerX + Math.cos(this.params.lightAngle) * handleDistance;
+            const handleY = centerY + Math.sin(this.params.lightAngle) * handleDistance;
+            lightRotateHandle.style.left = `${handleX}px`;
+            lightRotateHandle.style.top = `${handleY}px`;
+
+            // Hide rotate handle if cone angle is full circle (point light)
+            lightRotateHandle.style.opacity = this.params.lightConeAngle < 3.0 ? '1' : '0';
         }
     }
 
@@ -475,6 +695,21 @@ class VHSDepthEffect {
 
         // Post params
         this.renderer.setUniform(program, 'u_vignetteIntensity', this.params.vignetteIntensity);
+
+        // Light params
+        this.renderer.setUniform(program, 'u_lightEnabled', this.params.lightEnabled ? 1.0 : 0.0);
+        this.renderer.setUniform(program, 'u_lightPosition', [this.params.lightX, 1.0 - this.params.lightY]); // Flip Y for shader
+        this.renderer.setUniform(program, 'u_lightRadius', this.params.lightRadius);
+        this.renderer.setUniform(program, 'u_lightIntensity', this.params.lightIntensity);
+        this.renderer.setUniform(program, 'u_lightColor', [
+            this.params.lightColorR,
+            this.params.lightColorG,
+            this.params.lightColorB
+        ]);
+        this.renderer.setUniform(program, 'u_lightDispersion', this.params.lightDispersion);
+        this.renderer.setUniform(program, 'u_lightDepthInfluence', this.params.lightDepthInfluence);
+        this.renderer.setUniform(program, 'u_lightAngle', -this.params.lightAngle); // Flip angle for shader Y flip
+        this.renderer.setUniform(program, 'u_lightConeAngle', this.params.lightConeAngle);
 
         // View mode: 0 = effect, 1 = depth map
         const viewModeNum = this.viewMode === 'depth' ? 1 : 0;

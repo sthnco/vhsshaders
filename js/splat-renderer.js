@@ -33,7 +33,17 @@ export class SplatRenderer {
             contourCount: 25,
             lineThickness: 1.5,
             lineBrightness: 0.9,
-            grainAmount: 0.15
+            grainAmount: 0.15,
+            // Light params
+            lightEnabled: false,
+            lightPosition: [0.5, 0.5],
+            lightRadius: 0.4,
+            lightIntensity: 1.0,
+            lightColor: [1.0, 1.0, 1.0],
+            lightDispersion: 1.5,
+            lightDepthInfluence: 0.5,
+            lightAngle: 0,
+            lightConeAngle: 3.14159
         };
 
         this.time = 0;
@@ -172,6 +182,34 @@ export class SplatRenderer {
         if (params.grainAmount !== undefined) {
             this.params.grainAmount = params.grainAmount;
         }
+        // Light params
+        if (params.lightEnabled !== undefined) {
+            this.params.lightEnabled = params.lightEnabled;
+        }
+        if (params.lightX !== undefined && params.lightY !== undefined) {
+            this.params.lightPosition = [params.lightX, 1.0 - params.lightY]; // Flip Y for shader
+        }
+        if (params.lightRadius !== undefined) {
+            this.params.lightRadius = params.lightRadius;
+        }
+        if (params.lightIntensity !== undefined) {
+            this.params.lightIntensity = params.lightIntensity;
+        }
+        if (params.lightColorR !== undefined) {
+            this.params.lightColor = [params.lightColorR, params.lightColorG, params.lightColorB];
+        }
+        if (params.lightDispersion !== undefined) {
+            this.params.lightDispersion = params.lightDispersion;
+        }
+        if (params.lightDepthInfluence !== undefined) {
+            this.params.lightDepthInfluence = params.lightDepthInfluence;
+        }
+        if (params.lightAngle !== undefined) {
+            this.params.lightAngle = -params.lightAngle; // Flip for shader Y flip
+        }
+        if (params.lightConeAngle !== undefined) {
+            this.params.lightConeAngle = params.lightConeAngle;
+        }
     }
 
     // Create view matrix from camera state
@@ -276,6 +314,17 @@ export class SplatRenderer {
         gl.uniform1f(gl.getUniformLocation(this.program, 'u_lineBrightness'), this.params.lineBrightness);
         gl.uniform1f(gl.getUniformLocation(this.program, 'u_grainAmount'), this.params.grainAmount);
         gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), this.time);
+
+        // Light uniforms
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightEnabled'), this.params.lightEnabled ? 1.0 : 0.0);
+        gl.uniform2fv(gl.getUniformLocation(this.program, 'u_lightPosition'), this.params.lightPosition);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightRadius'), this.params.lightRadius);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightIntensity'), this.params.lightIntensity);
+        gl.uniform3fv(gl.getUniformLocation(this.program, 'u_lightColor'), this.params.lightColor);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightDispersion'), this.params.lightDispersion);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightDepthInfluence'), this.params.lightDepthInfluence);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightAngle'), this.params.lightAngle);
+        gl.uniform1f(gl.getUniformLocation(this.program, 'u_lightConeAngle'), this.params.lightConeAngle);
 
         // Bind depth texture
         gl.activeTexture(gl.TEXTURE0);

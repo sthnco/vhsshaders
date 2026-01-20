@@ -20,21 +20,23 @@ body {
 /* Left Panel */
 #left-panel {
     position: fixed;
-    left: 0;
-    top: 0;
+    left: 20px;
+    top: 20px;
     width: 200px;
-    height: 100vh;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
     background: rgba(20, 20, 20, 0.95);
-    border-right: 1px solid #333;
-    padding: 20px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 0;
     z-index: 100;
 }
 
 #left-panel h3 {
-    margin: 0;
+    margin: 0 0 0 0;
     color: #ccc;
     font-size: 14px;
     font-weight: 600;
@@ -45,56 +47,45 @@ body {
 .upload-btn {
     background: #333;
     color: #fff;
-    padding: 12px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background 0.2s;
-    font-size: 13px;
-    text-align: center;
-    display: block;
-}
-
-.upload-btn:hover {
-    background: #444;
-}
-
-.upload-btn input {
-    display: none;
-}
-
-.toggle-btn {
-    background: #333;
-    color: #fff;
     padding: 10px 16px;
     border-radius: 6px;
     cursor: pointer;
     transition: background 0.2s;
     font-size: 12px;
     text-align: center;
+    display: block;
     border: 1px solid #444;
-    width: 100%;
 }
 
-.toggle-btn:hover {
+.upload-btn:hover {
     background: #444;
+    border-color: #555;
+}
+
+.upload-btn input {
+    display: none;
 }
 
 #status {
-    color: #666;
-    font-size: 12px;
+    color: #555;
+    font-size: 10px;
     line-height: 1.4;
+    margin-top: 8px;
+    font-style: italic;
 }
 
 /* Canvas Container - Center */
 #canvas-container {
     flex: 1;
-    margin-left: 200px;
-    margin-right: 260px;
+    margin-left: 0;
+    margin-right: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     padding: 30px;
+    padding-left: 240px;
+    padding-right: 280px;
     min-height: 100vh;
     gap: 15px;
 }
@@ -148,13 +139,14 @@ body {
     position: fixed;
     right: 20px;
     top: 20px;
-    width: 240px;
+    width: 220px;
     max-height: calc(100vh - 40px);
     overflow-y: auto;
+    overflow-x: hidden;
     background: rgba(20, 20, 20, 0.95);
     border: 1px solid #333;
     border-radius: 8px;
-    padding: 15px;
+    padding: 15px 12px 15px 15px;
     font-size: 12px;
     z-index: 100;
 }
@@ -190,13 +182,15 @@ body {
 }
 
 .slider-row > span:first-child {
-    width: 80px;
+    width: 60px;
+    flex-shrink: 0;
     color: #777;
     font-size: 11px;
 }
 
 .slider-row input[type="range"] {
     flex: 1;
+    min-width: 0;
     height: 4px;
     -webkit-appearance: none;
     appearance: none;
@@ -230,8 +224,9 @@ body {
 }
 
 .slider-row .value {
-    width: 45px;
-    text-align: right;
+    width: 32px;
+    flex-shrink: 0;
+    text-align: left;
     color: #888;
     font-family: monospace;
     font-size: 10px;
@@ -246,7 +241,8 @@ body {
 }
 
 .color-row > span:first-child {
-    width: 80px;
+    width: 60px;
+    flex-shrink: 0;
     color: #777;
     font-size: 11px;
 }
@@ -299,18 +295,20 @@ body {
 
 /* Layers Panel */
 #layers-panel {
-    margin-top: 20px;
+    margin-top: 0;
     border-top: 1px solid #333;
     padding-top: 15px;
 }
 
 #layers-panel h3 {
     margin: 0 0 12px 0;
-    color: #ccc;
-    font-size: 14px;
+    color: #aaa;
+    font-size: 11px;
     font-weight: 600;
-    border-bottom: 1px solid #333;
-    padding-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 #layers-panel.hidden {
@@ -384,4 +382,79 @@ body {
 #debug-panel::-webkit-scrollbar-thumb:hover,
 #left-panel::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+/* Checkbox row */
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #666;
+    cursor: pointer;
+}
+
+.checkbox-row span {
+    color: #777;
+    font-size: 11px;
+}
+
+/* Light handle overlay */
+#light-handle {
+    position: absolute;
+    pointer-events: none;
+    z-index: 50;
+}
+
+#light-handle.hidden {
+    display: none;
+}
+
+.light-center {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    cursor: move;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.light-direction {
+    position: absolute;
+    width: 40px;
+    height: 2px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.2));
+    transform-origin: left center;
+    pointer-events: none;
+}
+
+.light-rotate-handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    background: rgba(255, 200, 100, 0.5);
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    cursor: grab;
+    box-shadow: 0 0 6px rgba(255, 200, 100, 0.5);
+}
+
+.light-rotate-handle:active {
+    cursor: grabbing;
+}
+
+/* Canvas container needs relative positioning for overlay */
+#canvas-container {
+    position: relative;
 }
