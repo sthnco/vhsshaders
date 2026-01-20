@@ -100,16 +100,26 @@ export class WebGLRenderer {
         const texture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
+        // Convert Float32 depth data to RGBA8 for better compatibility
+        const rgbaData = new Uint8Array(depthMap.width * depthMap.height * 4);
+        for (let i = 0; i < depthMap.data.length; i++) {
+            const val = Math.floor(depthMap.data[i] * 255);
+            rgbaData[i * 4 + 0] = val; // R
+            rgbaData[i * 4 + 1] = val; // G
+            rgbaData[i * 4 + 2] = val; // B
+            rgbaData[i * 4 + 3] = 255; // A
+        }
+
         gl.texImage2D(
             gl.TEXTURE_2D,
             0,
-            gl.R32F,
+            gl.RGBA,
             depthMap.width,
             depthMap.height,
             0,
-            gl.RED,
-            gl.FLOAT,
-            depthMap.data
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            rgbaData
         );
 
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);

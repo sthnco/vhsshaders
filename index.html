@@ -8,9 +8,10 @@
 </head>
 <body>
     <div id="app">
-        <div id="controls">
+        <div id="left-panel">
+            <h3>Upload</h3>
             <label for="imageInput" class="upload-btn">
-                Upload Image
+                Choose Image
                 <input type="file" id="imageInput" accept="image/*">
             </label>
             <div id="status">Ready</div>
@@ -18,6 +19,116 @@
 
         <div id="canvas-container">
             <canvas id="canvas"></canvas>
+            <button id="toggleView" class="toggle-btn hidden">Show Depth Map</button>
+            <button id="toggle3D" class="toggle-btn hidden">3D Splat View</button>
+        </div>
+
+        <div id="debug-panel">
+            <h3>Controls</h3>
+
+            <div class="control-group">
+                <label>Contours</label>
+                <div class="slider-row">
+                    <span>Count</span>
+                    <input type="range" id="contourCount" min="5" max="60" value="25" step="1">
+                    <span class="value" id="contourCount-val">25</span>
+                </div>
+                <div class="slider-row">
+                    <span>Thickness</span>
+                    <input type="range" id="lineThickness" min="0.5" max="4" value="1.5" step="0.1">
+                    <span class="value" id="lineThickness-val">1.5</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Waves</label>
+                <div class="slider-row">
+                    <span>Amplitude</span>
+                    <input type="range" id="waveAmplitude" min="0" max="0.03" value="0.008" step="0.001">
+                    <span class="value" id="waveAmplitude-val">0.008</span>
+                </div>
+                <div class="slider-row">
+                    <span>Frequency</span>
+                    <input type="range" id="waveFrequency" min="10" max="150" value="50" step="5">
+                    <span class="value" id="waveFrequency-val">50</span>
+                </div>
+                <div class="slider-row">
+                    <span>Speed</span>
+                    <input type="range" id="waveSpeed" min="0" max="5" value="2" step="0.1">
+                    <span class="value" id="waveSpeed-val">2</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Glow</label>
+                <div class="slider-row">
+                    <span>Intensity</span>
+                    <input type="range" id="glowIntensity" min="0" max="1.5" value="0.6" step="0.05">
+                    <span class="value" id="glowIntensity-val">0.6</span>
+                </div>
+                <div class="slider-row">
+                    <span>Size</span>
+                    <input type="range" id="glowSize" min="1" max="5" value="2" step="0.5">
+                    <span class="value" id="glowSize-val">2</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Color</label>
+                <div class="color-row">
+                    <span>Glow</span>
+                    <input type="color" id="glowColor" value="#1a4de6">
+                    <input type="text" id="glowColorHex" value="#1a4de6" maxlength="7" class="hex-input">
+                </div>
+                <div class="slider-row">
+                    <span>Line Brightness</span>
+                    <input type="range" id="lineBrightness" min="0.3" max="1" value="0.9" step="0.05">
+                    <span class="value" id="lineBrightness-val">0.9</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>VHS Effects</label>
+                <div class="slider-row">
+                    <span>Grain</span>
+                    <input type="range" id="grainAmount" min="0" max="0.4" value="0.15" step="0.01">
+                    <span class="value" id="grainAmount-val">0.15</span>
+                </div>
+                <div class="slider-row">
+                    <span>Scanlines</span>
+                    <input type="range" id="scanlineIntensity" min="0" max="0.3" value="0.08" step="0.01">
+                    <span class="value" id="scanlineIntensity-val">0.08</span>
+                </div>
+                <div class="slider-row">
+                    <span>Jitter</span>
+                    <input type="range" id="jitterAmount" min="0" max="0.01" value="0.002" step="0.0005">
+                    <span class="value" id="jitterAmount-val">0.002</span>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Post</label>
+                <div class="slider-row">
+                    <span>Vignette</span>
+                    <input type="range" id="vignetteIntensity" min="0" max="0.6" value="0.3" step="0.05">
+                    <span class="value" id="vignetteIntensity-val">0.3</span>
+                </div>
+            </div>
+
+            <div class="control-group" id="splat-controls" style="display: none;">
+                <label>3D Splat</label>
+                <div class="slider-row">
+                    <span>Point Size</span>
+                    <input type="range" id="pointSize" min="5" max="40" value="15" step="1">
+                    <span class="value" id="pointSize-val">15</span>
+                </div>
+                <div class="slider-row">
+                    <span>Depth Scale</span>
+                    <input type="range" id="depthScale" min="0.5" max="4" value="1.5" step="0.1">
+                    <span class="value" id="depthScale-val">1.5</span>
+                </div>
+                <div class="hint">Drag to rotate, Right-drag to pan, Scroll to zoom</div>
+            </div>
         </div>
 
         <div id="loading" class="hidden">
